@@ -357,7 +357,8 @@ class Model(object):
                conv_stride, first_pool_size, first_pool_stride,
                block_sizes, block_strides,
                resnet_version=DEFAULT_VERSION, data_format=None,
-               dtype=DEFAULT_DTYPE):
+               dtype=DEFAULT_DTYPE,
+               use_dali=False):
     """Creates a model for classifying an image.
 
     Args:
@@ -424,6 +425,7 @@ class Model(object):
     self.block_sizes = block_sizes
     self.block_strides = block_strides
     self.dtype = dtype
+    self.use_dali = use_dali
     self.pre_activation = resnet_version == 2
 
   def _custom_dtype_getter(self, getter, name, shape=None, dtype=DEFAULT_DTYPE,
@@ -497,7 +499,9 @@ class Model(object):
         # Convert the inputs from channels_last (NHWC) to channels_first (NCHW).
         # This provides a large performance boost on GPU. See
         # https://www.tensorflow.org/performance/performance_guide#data_formats
-        inputs = tf.transpose(a=inputs, perm=[0, 3, 1, 2])
+        if not self.use_dali:
+          inputs = tf.transpose(a=inputs, perm=[0, 3, 1, 2])
+
 
       inputs = conv2d_fixed_padding(
           inputs=inputs, filters=self.num_filters, kernel_size=self.kernel_size,

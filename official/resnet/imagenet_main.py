@@ -30,6 +30,9 @@ from official.resnet import imagenet_preprocessing
 from official.resnet import resnet_model
 from official.resnet import resnet_run_loop
 
+from official.resnet import dali_pipeline
+
+
 DEFAULT_IMAGE_SIZE = 224
 NUM_CHANNELS = 3
 NUM_CLASSES = 1001
@@ -263,6 +266,11 @@ class ImagenetModel(resnet_model.Model):
     else:
       bottleneck = True
 
+    if flags.FLAGS.use_dali:
+        use_dali=True
+    else:
+        use_dali=False
+
     super(ImagenetModel, self).__init__(
         resnet_size=resnet_size,
         bottleneck=bottleneck,
@@ -276,8 +284,8 @@ class ImagenetModel(resnet_model.Model):
         block_strides=[1, 2, 2, 2],
         resnet_version=resnet_version,
         data_format=data_format,
-        dtype=dtype
-    )
+        dtype=dtype,
+        use_dali=use_dali)
 
 
 def _get_block_sizes(resnet_size):
@@ -376,6 +384,10 @@ def run_imagenet(flags_obj):
                     get_synth_input_fn(flags_core.get_tf_dtype(flags_obj)) or
                     input_fn)
 
+  if flags_obj.use_dali:
+    input_function = dali_pipeline.dali_input_fn
+
+
   result = resnet_run_loop.resnet_main(
       flags_obj, imagenet_model_fn, input_function, DATASET_NAME,
       shape=[DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE, NUM_CHANNELS])
@@ -390,5 +402,5 @@ def main(_):
 
 if __name__ == '__main__':
   tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
-  define_imagenet_flags(dynamic_loss_scale=True, fp16_implementation=True)
+  define_imagenet_flags(dynamic_loss_scale=True, fp16_implementation=False)
   absl_app.run(main)

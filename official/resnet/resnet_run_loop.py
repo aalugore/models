@@ -42,6 +42,10 @@ from official.resnet import imagenet_preprocessing
 from official.utils.misc import distribution_utils
 from official.utils.misc import model_helpers
 
+from official.resnet import dali_pipeline
+
+
+from tensorflow.core.protobuf import rewriter_config_pb2
 
 ################################################################################
 # Functions for input processing.
@@ -378,7 +382,6 @@ def resnet_model_fn(features, labels, mode, model_class,
     EstimatorSpec parameterized according to the input params and the
     current mode.
   """
-
   # Generate a summary node for the images
   tf.compat.v1.summary.image('images', features, max_outputs=6)
   # Checks that features/images have same data type being used for calculations.
@@ -560,6 +563,7 @@ def resnet_main(
       inter_op_parallelism_threads=flags_obj.inter_op_parallelism_threads,
       intra_op_parallelism_threads=flags_obj.intra_op_parallelism_threads,
       allow_soft_placement=True)
+  session_config.graph_options.rewrite_options.layout_optimizer=rewriter_config_pb2.RewriterConfig.ON
 
   distribution_strategy = distribution_utils.get_distribution_strategy(
       distribution_strategy=flags_obj.distribution_strategy,
@@ -618,26 +622,42 @@ def resnet_main(
       model_dir=flags_obj.model_dir,
       batch_size=flags_obj.batch_size)
 
-  def input_fn_train(num_epochs, input_context=None):
-    return input_function(
-        is_training=True,
-        data_dir=flags_obj.data_dir,
-        batch_size=distribution_utils.per_replica_batch_size(
-            flags_obj.batch_size, flags_core.get_num_gpus(flags_obj)),
-        num_epochs=num_epochs,
-        dtype=flags_core.get_tf_dtype(flags_obj),
-        datasets_num_private_threads=flags_obj.datasets_num_private_threads,
-        num_parallel_batches=flags_obj.datasets_num_parallel_batches,
-        input_context=input_context)
 
-  def input_fn_eval():
-    return input_function(
-        is_training=False,
-        data_dir=flags_obj.data_dir,
-        batch_size=distribution_utils.per_replica_batch_size(
-            flags_obj.batch_size, flags_core.get_num_gpus(flags_obj)),
-        num_epochs=1,
-        dtype=flags_core.get_tf_dtype(flags_obj))
+
+  # Here we decide to use the dali input data function defined in dali_pipeline.py
+  if flags_obj.use_dali:
+    print("DALI BRANCH")
+    def input_fn_train():
+      return input_function()
+
+    def input_fn_eval():
+      return input_function()
+
+  else:
+
+    def input_fn_train(num_epochs, input_context=None):
+      return input_function(
+          is_training=True,
+          data_dir=flags_obj.data_dir,
+          batch_size=distribution_utils.per_replica_batch_size(
+              flags_obj.batch_size, flags_core.get_num_gpus(flags_obj)),
+          num_epochs=num_epochs,
+          dtype=flags_core.get_tf_dtype(flags_obj),
+          datasets_num_private_threads=flags_obj.datasets_num_private_threads,
+          num_parallel_batches=flags_obj.datasets_num_parallel_batches,
+          input_context=input_context)
+
+    def input_fn_eval():
+      return input_function(
+          is_training=False,
+          data_dir=flags_obj.data_dir,
+          batch_size=distribution_utils.per_replica_batch_size(
+              flags_obj.batch_size, flags_core.get_num_gpus(flags_obj)),
+          num_epochs=1,
+          dtype=flags_core.get_tf_dtype(flags_obj))
+
+
+
 
   train_epochs = (0 if flags_obj.eval_only or not flags_obj.train_epochs else
                   flags_obj.train_epochs)
@@ -681,11 +701,23 @@ def resnet_main(
         # value of num_train_epochs in the lambda function will not be changed
         # before it is used. So it is safe to ignore the pylint error here
         # pylint: disable=cell-var-from-loop
-        classifier.train(
+
+
+        if flags_obj.use_dali:
+
+          classifier.train( input_fn=lambda:input_fn_train,
+                            hooks=train_hooks,
+                            max_steps=flags_obj.max_train_steps)
+
+
+        else:
+
+          classifier.train(
             input_fn=lambda input_context=None: input_fn_train(
                 num_train_epochs, input_context=input_context),
             hooks=train_hooks,
             max_steps=flags_obj.max_train_steps)
+
 
       # flags_obj.max_train_steps is generally associated with testing and
       # profiling. As a result it is frequently called with synthetic data,
@@ -696,7 +728,6 @@ def resnet_main(
       tf.compat.v1.logging.info('Starting to evaluate.')
       eval_results = classifier.evaluate(input_fn=input_fn_eval,
                                          steps=flags_obj.max_train_steps)
-
       benchmark_logger.log_evaluation_result(eval_results)
 
       if model_helpers.past_stop_threshold(
@@ -715,10 +746,11 @@ def resnet_main(
     classifier.export_savedmodel(flags_obj.export_dir, input_receiver_fn,
                                  strip_default_attrs=True)
 
+
+
   stats = {}
   stats['eval_results'] = eval_results
   stats['train_hooks'] = train_hooks
-
   return stats
 
 
@@ -738,11 +770,17 @@ def define_resnet_flags(resnet_size_choices=None, dynamic_loss_scale=False,
   flags_core.define_benchmark()
   flags.adopt_module_key_flags(flags_core)
 
+
+
   flags.DEFINE_enum(
       name='resnet_version', short_name='rv', default='1',
       enum_values=['1', '2'],
       help=flags_core.help_wrap(
           'Version of ResNet. (1 or 2) See README.md for details.'))
+  flags.DEFINE_bool(
+      name='use_dali', short_name='dali', default=False,
+      help=flags_core.help_wrap(
+          'If True use DALI pipeline for data preprocessing.'))
   flags.DEFINE_bool(
       name='fine_tune', short_name='ft', default=False,
       help=flags_core.help_wrap(
