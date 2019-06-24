@@ -626,12 +626,18 @@ def resnet_main(
 
   # Here we decide to use the dali input data function defined in dali_pipeline.py
   if flags_obj.use_dali:
-    print("DALI BRANCH")
+    height, width, channels = shape
     def input_fn_train():
-      return input_function()
+      return input_function(batch_size = flags_obj.batch_size,
+                            image_height = height,
+                            image_width = width,
+                            num_channels = channels)
 
     def input_fn_eval():
-      return input_function()
+      return input_function(flags_obj.batch_size,
+                            height,
+                            width,
+                            channels)
 
   else:
 

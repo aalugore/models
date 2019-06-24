@@ -12,23 +12,12 @@ import tensorflow as tf
 
 
 # Global Variables
-# Note: Some are used, some are not. These are identical to the Globals at the top of
-# models/official/resnet/imagenet_main.py
-DEFAULT_IMAGE_SIZE = 224
-NUM_CHANNELS = 3
-NUM_CLASSES = 1001
 NUM_GPUS = 1
 NUM_THREADS = 4
 
 USED_GPU = 2
 
-NUM_IMAGES = {
-    'train': 1281167,
-    'validation': 50000,
-}
-
 _NUM_TRAIN_FILES = 1024
-BATCH_SIZE = 32
 
 
 
@@ -90,21 +79,14 @@ def generate_index():
 
 # Define the pipeline
 class ResnetPipeline(Pipeline):
-    def __init__(self, batch_size, num_threads, device_id):
+    def __init__(self, batch_size, num_threads, device_id, tfrecords, idx_paths):
         super(ResnetPipeline, self).__init__(batch_size,
                                              num_threads,
                                              device_id)
 
-        # Get all the file names
-        # old vars: tfrecord_path, tfrecord_idx_path
-        tfrecords = get_filenames(True, "/mnt/data/")
-        idx_paths = get_idx_filenames(True, "/home/builder/imagenet_idx_files")
-
-
 
         # Transformation operations below.
         # From https://docs.nvidia.com/deeplearning/sdk/dali-developer-guide/docs/supported_ops.html
-
         self.input = ops.TFRecordReader(path = tfrecords,
                                         index_path = idx_paths,
                                         features = {"image/encoded":  tfrec.FixedLenFeature([], tfrec.string, ""),
@@ -158,18 +140,11 @@ class ResnetPipeline(Pipeline):
                           crop_pos_x = self.uniform(),
                           crop_pos_y = self.uniform())
 
-        #output = self.cast(output)
-        #label = tf.cast(features['image/class/label'], dtype=tf.int32)
-
-        # Commented out for now. Another attempt to get the shape right. Did not help
-        #output = self.transpose(output)
 
 
         # Get label tensor
         labels = inputs["image/class/label"]
 
-
-        print("END DEFINE_GRAPH")
         # Image tensor already comes out on gpu where labels does not.
         # Cast labels tensor to GPU
         return (output, labels.gpu())
@@ -183,13 +158,22 @@ class ResnetPipeline(Pipeline):
 # Data Preprocessing input function. This function will be passed directly to the estimator
 # as the 'input_fn' parameter.
 # Note: Required to return either a tf.Dataset Object or a tuple of Tensors.
-def dali_input_fn():
+def dali_input_fn(batch_size,
+                  num_channels,
+                  image_height,
+                  image_width):
 
-    print("CALLED MY FUNCTION==================================")
+    # Get all the file names
+    # old vars: tfrecord_path, tfrecord_idx_path
+    tfrecords = get_filenames(True, "/mnt/data/")
+    idx_paths = get_idx_filenames(True, "/home/builder/imagenet_idx_files")
 
-    dali_pipe = ResnetPipeline(batch_size = BATCH_SIZE,
+
+    dali_pipe = ResnetPipeline(batch_size = batch_size,
                                num_threads = NUM_THREADS,
-                               device_id = USED_GPU)
+                               device_id = USED_GPU,
+                               tfrecords = tfrecords,
+                               idx_paths = idx_paths)
 
     # Serialize Pipeline into Protobuf string
     serialized = dali_pipe.serialize()
@@ -204,13 +188,12 @@ def dali_input_fn():
         # i.e.: img shape =[32,3,224,224], lbl shape=[<unknown>]
         # dtypes are the type of the 2 output tensors respectively
         img, label = daliop(serialized_pipeline = serialized,
-                             shapes = [(32,3, 224,224),()],
+                             shapes = [(batch_size, num_channels, image_height, image_width),()],
                              dtypes = [tf.float32, tf.int32])
 
 
-
-    img=tf.reshape(img, shape=[32,224,224,3])
-    label=tf.reshape(label, shape=[32])
+    img=tf.reshape(img, shape=[batch_size,image_height,image_width,num_channels])
+    label=tf.reshape(label, shape=[batch_size])
     return (img, label)
 
 
@@ -219,6 +202,6 @@ if __name__ == '__main__':
     print("MAIN DALI_PIPELINE EXECUTED")
 
     # Unit testing for debugging
-    image, label = dali_input_fn()
-    print(image)
-    print(label)
+    #image, label = dali_input_fn(BATCH_SIZE, NUM_CHANNELS, DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE)
+    #print(image)
+    #print(label)
