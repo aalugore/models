@@ -13,9 +13,9 @@ import tensorflow as tf
 
 # Global Variables
 NUM_GPUS = 1
-NUM_THREADS = 4
+NUM_THREADS = 1
 
-USED_GPU = 2
+USED_GPU = 1
 
 _NUM_TRAIN_FILES = 1024
 
@@ -161,12 +161,13 @@ class ResnetPipeline(Pipeline):
 def dali_input_fn(batch_size,
                   num_channels,
                   image_height,
-                  image_width):
+                  image_width,
+                  is_training):
 
     # Get all the file names
     # old vars: tfrecord_path, tfrecord_idx_path
-    tfrecords = get_filenames(True, "/mnt/data/")
-    idx_paths = get_idx_filenames(True, "/home/builder/imagenet_idx_files")
+    tfrecords = get_filenames(is_training, "/mnt/data/")
+    idx_paths = get_idx_filenames(is_training, "/home/builder/imagenet_idx_files")
 
 
     dali_pipe = ResnetPipeline(batch_size = batch_size,
@@ -182,7 +183,7 @@ def dali_input_fn(batch_size,
     daliop = dali_tf.DALIIterator()
 
 
-    with tf.device("/gpu:0"):
+    with tf.device("/gpu:1"):
         # daliop returns what we specify from define_graph() above
         # Shapes are the expected output Tensor shapes.
         # i.e.: img shape =[32,3,224,224], lbl shape=[<unknown>]
@@ -202,6 +203,15 @@ if __name__ == '__main__':
     print("MAIN DALI_PIPELINE EXECUTED")
 
     # Unit testing for debugging
-    #image, label = dali_input_fn(BATCH_SIZE, NUM_CHANNELS, DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE)
-    #print(image)
-    #print(label)
+    batch_size = 32
+    channels = 3
+    img_size = 224
+
+
+
+
+
+
+    image, label = dali_input_fn(batch_size, channels, img_size, img_size)
+    print(image)
+    print(label)

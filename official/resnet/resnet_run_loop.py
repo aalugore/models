@@ -631,13 +631,15 @@ def resnet_main(
       return input_function(batch_size = flags_obj.batch_size,
                             image_height = height,
                             image_width = width,
-                            num_channels = channels)
+                            num_channels = channels,
+                            is_training = True)
 
     def input_fn_eval():
-      return input_function(flags_obj.batch_size,
-                            height,
-                            width,
-                            channels)
+      return input_function(batch_size = flags_obj.batch_size,
+                            image_height = height,
+                            image_width = width,
+                            num_channels = channels,
+                            is_training = False)
 
   else:
 
@@ -725,6 +727,13 @@ def resnet_main(
             max_steps=flags_obj.max_train_steps)
 
 
+      print("")
+      print("")
+      print("")
+      print("MADE IT PAST THE TRAIN STEPS")
+      print("")
+      print("")
+      print("")
       # flags_obj.max_train_steps is generally associated with testing and
       # profiling. As a result it is frequently called with synthetic data,
       # which will iterate forever. Passing steps=flags_obj.max_train_steps
@@ -739,6 +748,15 @@ def resnet_main(
       if model_helpers.past_stop_threshold(
           flags_obj.stop_threshold, eval_results['accuracy']):
         break
+
+
+      print("")
+      print("")
+      print("")
+      print("MADE IT PAST THE EVAL STEPS")
+      print("")
+      print("")
+      print("")
 
   if flags_obj.export_dir is not None:
     # Exports a saved model for the given classifier.
