@@ -43,6 +43,8 @@ from official.utils.misc import distribution_utils
 from official.utils.misc import model_helpers
 
 from official.resnet import dali_pipeline
+from official.resnet import cuda_profile_hook
+
 
 
 from tensorflow.core.protobuf import rewriter_config_pb2
@@ -622,7 +624,10 @@ def resnet_main(
       model_dir=flags_obj.model_dir,
       batch_size=flags_obj.batch_size)
 
+  train_hooks.append(cuda_profile_hook.CudaProfileHook())
 
+
+  print(train_hooks)
 
   # Here we decide to use the dali input data function defined in dali_pipeline.py
   if flags_obj.use_dali:

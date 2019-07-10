@@ -5,6 +5,7 @@ import nvidia.dali.ops as ops
 import nvidia.dali.types as types
 import nvidia.dali.tfrecord as tfrec
 
+
 # Generic Imports
 import os
 from subprocess import call
@@ -12,10 +13,9 @@ import tensorflow as tf
 
 
 # Global Variables
-NUM_GPUS = 1
 NUM_THREADS = 1
 
-USED_GPU = 1
+USED_GPU = 0
 
 _NUM_TRAIN_FILES = 1024
 
@@ -98,6 +98,7 @@ class ResnetPipeline(Pipeline):
                                             "image/object/bbox/ymax": tfrec.VarLenFeature(tfrec.float32, 0.0)})
 
         self.decode = ops.nvJPEGDecoder(device = "mixed",
+                                        cache_debug = True,
                                         output_type = types.RGB)
 
         self.resize = ops.Resize(device = "gpu",
@@ -183,7 +184,7 @@ def dali_input_fn(batch_size,
     daliop = dali_tf.DALIIterator()
 
 
-    with tf.device("/gpu:1"):
+    with tf.device("/gpu:0"):
         # daliop returns what we specify from define_graph() above
         # Shapes are the expected output Tensor shapes.
         # i.e.: img shape =[32,3,224,224], lbl shape=[<unknown>]
@@ -199,19 +200,19 @@ def dali_input_fn(batch_size,
 
 
 #MAIN AREA
-if __name__ == '__main__':
-    print("MAIN DALI_PIPELINE EXECUTED")
+#if __name__ == '__main__':
+#    print("MAIN DALI_PIPELINE EXECUTED")
 
-    # Unit testing for debugging
-    batch_size = 32
-    channels = 3
-    img_size = 224
-
-
+#    # Unit testing for debugging
+#    batch_size = 32
+#    channels = 3
+#    img_size = 224
 
 
 
 
-    image, label = dali_input_fn(batch_size, channels, img_size, img_size)
-    print(image)
-    print(label)
+
+
+    #image, label = dali_input_fn(batch_size, channels, img_size, img_size)
+    #print(image)
+    #print(label)
