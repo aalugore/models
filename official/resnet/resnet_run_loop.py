@@ -385,7 +385,7 @@ def resnet_model_fn(features, labels, mode, model_class,
     current mode.
   """
   # Generate a summary node for the images
-  tf.compat.v1.summary.image('images', features, max_outputs=6)
+#  tf.compat.v1.summary.image('images', features, max_outputs=6)
   # Checks that features/images have same data type being used for calculations.
   assert features.dtype == dtype
 
@@ -425,7 +425,7 @@ def resnet_model_fn(features, labels, mode, model_class,
 
   # Create a tensor named cross_entropy for logging purposes.
   tf.identity(cross_entropy, name='cross_entropy')
-  tf.compat.v1.summary.scalar('cross_entropy', cross_entropy)
+  #tf.compat.v1.summary.scalar('cross_entropy', cross_entropy)
 
   # If no loss_filter_fn is passed, assume we want the default behavior,
   # which is that batch_normalization variables are excluded from loss.
@@ -441,7 +441,7 @@ def resnet_model_fn(features, labels, mode, model_class,
           for v in tf.compat.v1.trainable_variables()
           if loss_filter_fn(v.name)
       ])
-  tf.compat.v1.summary.scalar('l2_loss', l2_loss)
+  #tf.compat.v1.summary.scalar('l2_loss', l2_loss)
   loss = cross_entropy + l2_loss
 
   if mode == tf.estimator.ModeKeys.TRAIN:
@@ -451,7 +451,7 @@ def resnet_model_fn(features, labels, mode, model_class,
 
     # Create a tensor named learning_rate for logging purposes
     tf.identity(learning_rate, name='learning_rate')
-    tf.compat.v1.summary.scalar('learning_rate', learning_rate)
+    #tf.compat.v1.summary.scalar('learning_rate', learning_rate)
 
     if flags.FLAGS.enable_lars:
       optimizer = tf.contrib.opt.LARSOptimizer(
@@ -515,9 +515,9 @@ def resnet_model_fn(features, labels, mode, model_class,
 
   # Create a tensor named train_accuracy for logging purposes
   tf.identity(accuracy[1], name='train_accuracy')
-  tf.identity(accuracy_top_5[1], name='train_accuracy_top_5')
-  tf.compat.v1.summary.scalar('train_accuracy', accuracy[1])
-  tf.compat.v1.summary.scalar('train_accuracy_top_5', accuracy_top_5[1])
+  #tf.identity(accuracy_top_5[1], name='train_accuracy_top_5')
+  #tf.compat.v1.summary.scalar('train_accuracy', accuracy[1])
+  #tf.compat.v1.summary.scalar('train_accuracy_top_5', accuracy_top_5[1])
 
   return tf.estimator.EstimatorSpec(
       mode=mode,

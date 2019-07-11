@@ -194,8 +194,8 @@ def dali_input_fn(batch_size,
                              dtypes = [tf.float32, tf.int32])
 
 
-    img=tf.reshape(img, shape=[batch_size,image_height,image_width,num_channels])
-    label=tf.reshape(label, shape=[batch_size])
+        img=tf.reshape(img, shape=[batch_size,image_height,image_width,num_channels])
+        label=tf.reshape(label, shape=[batch_size])
     return (img, label)
 
 
